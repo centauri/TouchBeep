@@ -1,0 +1,66 @@
+# Build TouchBeep on push and pull_request; upload artifacts and create/update "Latest" release on push.
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+permissions:
+  contents: write  # Required to create/update the Latest release and push tag
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore TouchBeep.csproj
+
+      - name: Build (net48)
+        run: dotnet build TouchBeep.csproj -c Release -f net48 --no-restore
+
+      - name: Build (net8.0-windows)
+        run: dotnet build TouchBeep.csproj -c Release -f net8.0-windows --no-restore
+
+      - name: Upload net48 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: TouchBeep-net48
+          path: bin/Release/net48/
+
+      - name: Upload net8.0-windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: TouchBeep-net8.0-windows
+          path: bin/Release/net8.0-windows/
+
+      # On push to main/master only: create zips and create/update "Latest" release (so Releases page is never empty)
+      - name: Create zip archives
+        if: github.event_name == 'push'
+        run: |
+          Compress-Archive -Path bin\Release\net48\* -DestinationPath TouchBeep-net48.zip
+          Compress-Archive -Path bin\Release\net8.0-windows\* -DestinationPath TouchBeep-net8.0-windows.zip
+
+      - name: Push tag latest and create GitHub Release
+        if: github.event_name == 'push'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Latest (from main)
+          body: "Automated build from the default branch. For a versioned release, push a tag (e.g. `v1.0.0`)."
+          files: |
+            TouchBeep-net48.zip
+            TouchBeep-net8.0-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
