@@ -1,0 +1,41 @@
+# Build TouchBeep on push and pull_request; upload exe artifacts.
+name: Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore TouchBeep.csproj
+
+      - name: Build (net48)
+        run: dotnet build TouchBeep.csproj -c Release -f net48 --no-restore
+
+      - name: Build (net8.0-windows)
+        run: dotnet build TouchBeep.csproj -c Release -f net8.0-windows --no-restore
+
+      - name: Upload net48 build
+        uses: actions/upload-artifact@v4
+        with:
+          name: TouchBeep-net48
+          path: bin/Release/net48/
+
+      - name: Upload net8.0-windows build
+        uses: actions/upload-artifact@v4
+        with:
+          name: TouchBeep-net8.0-windows
+          path: bin/Release/net8.0-windows/

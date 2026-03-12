@@ -1,0 +1,47 @@
+# When you push a version tag (e.g. v1.0.0), build and publish a GitHub Release with the executables.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write  # Required to create the release and upload assets
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore TouchBeep.csproj
+
+      - name: Build (net48)
+        run: dotnet build TouchBeep.csproj -c Release -f net48 --no-restore
+
+      - name: Build (net8.0-windows)
+        run: dotnet build TouchBeep.csproj -c Release -f net8.0-windows --no-restore
+
+      - name: Create zip archives
+        run: |
+          Compress-Archive -Path bin\Release\net48\* -DestinationPath TouchBeep-net48.zip
+          Compress-Archive -Path bin\Release\net8.0-windows\* -DestinationPath TouchBeep-net8.0-windows.zip
+
+      - name: Create GitHub Release and upload assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            TouchBeep-net48.zip
+            TouchBeep-net8.0-windows.zip
+          generate_release_notes: true
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
